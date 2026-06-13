@@ -1,0 +1,426 @@
+<template>
+    <lightning-card title="Permission Set Comparator" icon-name="utility:shield">
+
+        <!-- ══ PAGE 1 — SELECTION ══════════════════════════════════════════ -->
+        <template if:true={onSelectPage}>
+            <div class="slds-p-around_medium">
+
+                <p class="step-hint">Step 1 — Search and select 2 or more Permission Sets</p>
+
+                <lightning-input
+                    type="search"
+                    label="Search permission sets"
+                    placeholder="Filter by name or API name..."
+                    value={psFilter}
+                    onchange={handlePsFilter}
+                    class="slds-m-bottom_x-small">
+                </lightning-input>
+
+                <div class="ps-list slds-m-bottom_small">
+                    <template for:each={visiblePermSets} for:item="ps">
+                        <div key={ps.id} class={ps.cls} onclick={handlePsClick} data-id={ps.id}>
+                            <div class="ps-text">
+                                <span class="ps-label">{ps.label}</span>
+                                <span class="ps-api">{ps.name}</span>
+                            </div>
+                            <template if:true={ps.selected}>
+                                <lightning-icon icon-name="utility:check" size="x-small" class="ps-check"></lightning-icon>
+                            </template>
+                        </div>
+                    </template>
+                    <template if:true={noPsResults}>
+                        <div class="empty-list">No permission sets match your search</div>
+                    </template>
+                </div>
+
+                <template if:true={hasSelected}>
+                    <div class="slds-m-bottom_medium">
+                        <p class="step-hint">Selected ({selectedCount})</p>
+                        <div class="chip-row">
+                            <template for:each={selectedPermSets} for:item="ps">
+                                <span key={ps.id} class="chip chip--blue">
+                                    {ps.label}
+                                    <button class="chip-x" onclick={handleRemovePS} data-id={ps.id}>✕</button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <template if:true={hasSelected}>
+                    <div class="filter-box slds-m-bottom_medium">
+                        <p class="step-hint">Step 2 — Filter by objects (optional — leave empty to compare all)</p>
+                        <lightning-input
+                            type="search"
+                            label="Search objects"
+                            placeholder="e.g. Account, SIM_Ticket__c..."
+                            value={objFilter}
+                            onchange={handleObjFilter}>
+                        </lightning-input>
+                        <template if:true={showObjDropdown}>
+                            <div class="dropdown">
+                                <template for:each={objDropdownItems} for:item="obj">
+                                    <div key={obj.apiName} class="dropdown-item"
+                                        onclick={handlePickObj}
+                                        data-api={obj.apiName}
+                                        data-label={obj.label}>
+                                        <span class="dropdown-label">{obj.label}</span>
+                                        <span class="dropdown-api">{obj.apiName}</span>
+                                    </div>
+                                </template>
+                                <template if:true={noObjResults}>
+                                    <div class="dropdown-empty">No objects found</div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:true={hasSelectedObjs}>
+                            <div class="chip-row slds-m-top_x-small">
+                                <template for:each={selectedObjList} for:item="obj">
+                                    <span key={obj.apiName} class="chip chip--green">
+                                        {obj.label}
+                                        <button class="chip-x" onclick={handleRemoveObj} data-api={obj.apiName}>✕</button>
+                                    </span>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <div class="slds-align_absolute-center slds-m-top_medium">
+                    <lightning-button
+                        variant="brand"
+                        label="Compare Permission Sets"
+                        icon-name="utility:side_by_side"
+                        disabled={cannotCompare}
+                        onclick={handleCompare}>
+                    </lightning-button>
+                </div>
+
+                <template if:true={isComparing}>
+                    <div class="slds-align_absolute-center slds-m-top_medium">
+                        <lightning-spinner alternative-text="Comparing..." size="medium"></lightning-spinner>
+                        <span class="slds-m-left_small slds-text-color_weak">Loading comparison data...</span>
+                    </div>
+                </template>
+
+                <template if:true={compareError}>
+                    <div class="err-box slds-m-top_small">{compareError}</div>
+                </template>
+
+            </div>
+        </template>
+
+        <!-- ══ PAGE 2 — RESULTS ════════════════════════════════════════════ -->
+        <template if:true={onResultsPage}>
+            <div class="slds-p-around_medium">
+
+                <!-- Toolbar -->
+                <div class="toolbar slds-m-bottom_medium">
+                    <lightning-button label="← Back" onclick={handleBack}></lightning-button>
+                    <div class="ps-legend">
+                        <template for:each={psLegend} for:item="ps">
+                            <span key={ps.id} class="legend-chip">{ps.label}</span>
+                        </template>
+                    </div>
+                    <lightning-button
+                        label="Export CSV"
+                        icon-name="utility:download"
+                        variant="neutral"
+                        onclick={handleExport}>
+                    </lightning-button>
+                </div>
+
+                <!-- Hidden anchor for Locker-Service-safe CSV download -->
+                <a class="download-link" style="display:none;"></a>
+
+                <lightning-tabset>
+
+                    <!-- ── Object Permissions ─────────────────────────────── -->
+                    <lightning-tab label="Object Permissions" icon-name="utility:standard_objects">
+                        <div class="tbl-wrap slds-m-top_small">
+                            <table class="slds-table slds-table_bordered slds-table_cell-buffer comp-tbl">
+                                <thead>
+                                    <tr>
+                                        <th class="sticky-col hdr-blue">Object</th>
+                                        <template for:each={psLegend} for:item="ps">
+                                            <th key={ps.id} colspan="6" class="hdr-blue hdr-ps">{ps.label}</th>
+                                        </template>
+                                    </tr>
+                                    <tr>
+                                        <th class="sticky-col hdr-light"></th>
+                                        <template for:each={objSubHeaders} for:item="sh">
+                                            <th key={sh.id} class="hdr-light sub-hdr">{sh.label}</th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={objectPermRows} for:item="row">
+                                        <tr key={row.objectApiName}>
+                                            <td class="sticky-col name-cell">
+                                                <div class="obj-label slds-truncate" title={row.objectLabel}>{row.objectLabel}</div>
+                                                <div class="api-lbl slds-truncate">{row.objectApiName}</div>
+                                            </td>
+                                            <template for:each={row.cells} for:item="c">
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canRead}><span class="tk tk-r">✓</span></template>
+                                                    <template if:false={c.canRead}><span class="tk-no">–</span></template>
+                                                </td>
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canCreate}><span class="tk tk-c">✓</span></template>
+                                                    <template if:false={c.canCreate}><span class="tk-no">–</span></template>
+                                                </td>
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canEdit}><span class="tk tk-e">✓</span></template>
+                                                    <template if:false={c.canEdit}><span class="tk-no">–</span></template>
+                                                </td>
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canDelete}><span class="tk tk-d">✓</span></template>
+                                                    <template if:false={c.canDelete}><span class="tk-no">–</span></template>
+                                                </td>
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canViewAll}><span class="tk tk-va">✓</span></template>
+                                                    <template if:false={c.canViewAll}><span class="tk-no">–</span></template>
+                                                </td>
+                                                <td key={c.permSetId} class="tick-cell">
+                                                    <template if:true={c.canModifyAll}><span class="tk tk-ma">✓</span></template>
+                                                    <template if:false={c.canModifyAll}><span class="tk-no">–</span></template>
+                                                </td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                    <template if:true={noObjectRows}>
+                                        <tr>
+                                            <td colspan="20" class="slds-text-align_center slds-p-around_medium slds-text-color_weak">
+                                                No object permissions found
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div class="legend-key slds-m-top_x-small">
+                                <span class="tk tk-r">R</span>=Read &nbsp;
+                                <span class="tk tk-c">C</span>=Create &nbsp;
+                                <span class="tk tk-e">E</span>=Edit &nbsp;
+                                <span class="tk tk-d">D</span>=Delete &nbsp;
+                                <span class="tk tk-va">VA</span>=View All &nbsp;
+                                <span class="tk tk-ma">MA</span>=Modify All
+                            </div>
+                        </div>
+                    </lightning-tab>
+
+                    <!-- ── Field Permissions ──────────────────────────────── -->
+                    <lightning-tab label="Field Permissions" icon-name="utility:field">
+                        <div class="slds-m-top_small">
+                            <lightning-input
+                                type="search"
+                                label="Select an object to view its fields"
+                                placeholder="Type object name e.g. Account, SIM_Ticket__c..."
+                                value={fieldObjFilter}
+                                onchange={handleFieldObjFilter}>
+                            </lightning-input>
+                            <template if:true={showFieldObjDropdown}>
+                                <div class="dropdown">
+                                    <template for:each={fieldObjItems} for:item="obj">
+                                        <div key={obj.apiName} class="dropdown-item"
+                                            onclick={handlePickFieldObj}
+                                            data-value={obj.apiName}
+                                            data-label={obj.label}>
+                                            <span class="dropdown-label">{obj.label}</span>
+                                            <span class="dropdown-api">{obj.apiName}</span>
+                                        </div>
+                                    </template>
+                                    <template if:true={noFieldObjItems}>
+                                        <div class="dropdown-empty">No objects found</div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:true={activeObj}>
+                                <div class="active-obj-badge slds-m-top_x-small slds-m-bottom_small">
+                                    Viewing: <strong>{activeObjLabel}</strong>
+                                    <button class="chip-x chip-x--dark" onclick={handleClearFieldObj}>✕</button>
+                                </div>
+                            </template>
+                            <template if:true={loadingFields}>
+                                <div class="slds-align_absolute-center slds-p-around_medium">
+                                    <lightning-spinner alternative-text="Loading fields..." size="small"></lightning-spinner>
+                                    <span class="slds-m-left_small slds-text-color_weak">Loading all fields...</span>
+                                </div>
+                            </template>
+                            <template if:true={showFieldTable}>
+                                <lightning-input
+                                    type="search"
+                                    label="Filter fields"
+                                    placeholder="Filter by field name..."
+                                    value={fieldFilter}
+                                    onchange={handleFieldFilter}
+                                    class="slds-m-bottom_x-small">
+                                </lightning-input>
+                                <div class="tbl-wrap">
+                                    <table class="slds-table slds-table_bordered slds-table_cell-buffer comp-tbl">
+                                        <thead>
+                                            <tr>
+                                                <th class="sticky-col hdr-blue">Field</th>
+                                                <template for:each={psLegend} for:item="ps">
+                                                    <th key={ps.id} colspan="2" class="hdr-blue hdr-ps">{ps.label}</th>
+                                                </template>
+                                            </tr>
+                                            <tr>
+                                                <th class="sticky-col hdr-light"></th>
+                                                <template for:each={fieldSubHeaders} for:item="sh">
+                                                    <th key={sh.id} class="hdr-light sub-hdr">{sh.label}</th>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={filteredFieldRows} for:item="row">
+                                                <tr key={row.fieldApiName}>
+                                                    <td class="sticky-col name-cell">
+                                                        <div class="obj-label slds-truncate">{row.fieldLabel}</div>
+                                                        <div class="api-lbl slds-truncate">{row.fieldApiName}</div>
+                                                    </td>
+                                                    <template for:each={row.cells} for:item="c">
+                                                        <td key={c.permSetId} class="tick-cell">
+                                                            <template if:true={c.canRead}><span class="tk tk-r">✓</span></template>
+                                                            <template if:false={c.canRead}><span class="tk-no">–</span></template>
+                                                        </td>
+                                                        <td key={c.permSetId} class="tick-cell">
+                                                            <template if:true={c.canEdit}><span class="tk tk-e">✓</span></template>
+                                                            <template if:false={c.canEdit}><span class="tk-no">–</span></template>
+                                                        </td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                            <template if:true={noFieldRows}>
+                                                <tr>
+                                                    <td colspan="20" class="slds-text-align_center slds-p-around_medium slds-text-color_weak">
+                                                        No fields found
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:true={showFieldEmpty}>
+                                <div class="empty-state">
+                                    <lightning-icon icon-name="utility:field" size="large"></lightning-icon>
+                                    <p>Search and select an object above to view field permissions</p>
+                                </div>
+                            </template>
+                        </div>
+                    </lightning-tab>
+
+                    <!-- ── Apex Class Access ──────────────────────────────── -->
+                    <lightning-tab label="Apex Class Access" icon-name="utility:apex">
+                        <div class="slds-m-top_small">
+                            <lightning-input
+                                type="search"
+                                label="Filter classes"
+                                placeholder="Type class name..."
+                                value={apexFilter}
+                                onchange={handleApexFilter}
+                                class="slds-m-bottom_x-small">
+                            </lightning-input>
+                            <div class="tbl-wrap">
+                                <table class="slds-table slds-table_bordered slds-table_cell-buffer comp-tbl">
+                                    <thead>
+                                        <tr>
+                                            <th class="sticky-col hdr-blue">Apex Class</th>
+                                            <template for:each={psLegend} for:item="ps">
+                                                <th key={ps.id} class="hdr-blue hdr-ps">{ps.label}</th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={filteredApexRows} for:item="row">
+                                            <tr key={row.className}>
+                                                <td class="sticky-col name-cell">{row.className}</td>
+                                                <template for:each={row.access} for:item="c">
+                                                    <td key={c.psId} class="tick-cell">
+                                                        <template if:true={c.enabled}><span class="tk tk-r">✓</span></template>
+                                                        <template if:false={c.enabled}><span class="tk-no">–</span></template>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                        <template if:true={noApexRows}>
+                                            <tr>
+                                                <td colspan="10" class="slds-text-align_center slds-p-around_medium slds-text-color_weak">
+                                                    No Apex class access found for these permission sets
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </lightning-tab>
+
+                    <!-- ── System Permissions ─────────────────────────────── -->
+                    <lightning-tab label="System Permissions" icon-name="utility:settings">
+                        <div class="slds-m-top_small">
+
+                            <!-- Search + Diff toggle toolbar -->
+                            <div class="sys-toolbar slds-m-bottom_small">
+                                <lightning-input
+                                    type="search"
+                                    label="Search permissions"
+                                    placeholder="Filter by permission name..."
+                                    value={sysFilter}
+                                    onchange={handleSysFilter}>
+                                </lightning-input>
+                                <div class="sys-toolbar-right">
+                                    <span class="sys-count">{sysRowCount}</span>
+                                    <lightning-button
+                                        label={diffBtnLabel}
+                                        variant={diffBtnVariant}
+                                        icon-name="utility:filter"
+                                        onclick={handleDiffToggle}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+
+                            <div class="tbl-wrap">
+                                <table class="slds-table slds-table_bordered slds-table_cell-buffer comp-tbl">
+                                    <thead>
+                                        <tr>
+                                            <th class="sticky-col hdr-blue">Permission</th>
+                                            <template for:each={psLegend} for:item="ps">
+                                                <th key={ps.id} class="hdr-blue hdr-ps">{ps.label}</th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={filteredSysRows} for:item="row">
+                                            <tr key={row.permApiName}>
+                                                <td class="sticky-col name-cell">
+                                                    <div class="obj-label">{row.permLabel}</div>
+                                                    <div class="api-lbl">{row.permApiName}</div>
+                                                </td>
+                                                <template for:each={row.values} for:item="c">
+                                                    <td key={c.psId} class="tick-cell">
+                                                        <template if:true={c.enabled}><span class="tk tk-r">✓</span></template>
+                                                        <template if:false={c.enabled}><span class="tk-no">–</span></template>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                        <template if:true={noSysRows}>
+                                            <tr>
+                                                <td colspan="10" class="slds-text-align_center slds-p-around_medium slds-text-color_weak">
+                                                    No permissions match your filter
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </lightning-tab>
+
+                </lightning-tabset>
+            </div>
+        </template>
+
+    </lightning-card>
+</template>
