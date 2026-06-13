@@ -1,13 +1,10 @@
-# permission-set-comparator
-A Salesforce LWC to compare two or more Permission Sets side by side across objects, fields, Apex classes and system permissions.
-
-# 🔐 Permission Set Comparator
+# Permission Set Comparator
 
 A Salesforce Lightning Web Component (LWC) that lets you compare two or more Permission Sets side by side — built for admins and developers who are tired of clicking through Setup one permission set at a time.
 
 ---
 
-## 🤔 Why This Exists
+## Why This Exists
 
 Anyone who's managed Salesforce permissions knows the pain. You have two permission sets, a user is missing access to something, and you have no idea which one has it or what's different between them. The native Salesforce UI gives you no way to compare them side by side.
 
@@ -15,25 +12,25 @@ This tool fixes that.
 
 ---
 
-## ✨ What It Does
+## What It Does
 
 Select any 2 or more permission sets from your org and instantly see a full side-by-side comparison across four areas:
 
-### 📦 Object Permissions
+**Object Permissions**
 See Read, Create, Edit, Delete, View All, and Modify All access for every object — color coded so differences jump out immediately.
 
-### 🔍 Field Permissions
+**Field Permissions**
 Pick any object and see Read/Edit access for every single field on it. All fields shown — not just the ones with permissions already set.
 
-### ⚡ Apex Class Access
+**Apex Class Access**
 See which Apex classes each permission set can execute. Searchable by class name.
 
-### ⚙️ System Permissions
-All 200+ system permissions dynamically loaded from your org — including managed package permissions. Search by name or use the **"Show Differences Only"** toggle to instantly spot what's different between permission sets.
+**System Permissions**
+All 200+ system permissions dynamically loaded from your org — including managed package permissions. Search by name or use the "Show Differences Only" toggle to instantly spot what's different between permission sets.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Salesforce CLI (`sf`) installed
@@ -59,19 +56,19 @@ sf project deploy start --source-dir permissionSetComparator --target-org myOrg
 
 ---
 
-## 🖥️ Adding It to a Page
+## Adding It to a Page
 
 1. Go to **Setup → App Builder**
-2. Open any **Home Page**, **App Page**, or **Tab**
+2. Open any Home Page, App Page, or Tab
 3. Find **permissionSetComparator** under Custom Components in the left panel
 4. Drag it onto the page
-5. **Save** and **Activate**
+5. Save and Activate
 
 That's it. The component is live.
 
 ---
 
-## 📖 How to Use It
+## How to Use It
 
 **Step 1** — Type to search and select your permission sets. Selected ones appear as blue chips at the top.
 
@@ -79,7 +76,7 @@ That's it. The component is live.
 
 **Step 3** — Hit **Compare Permission Sets**. Results load in a few seconds.
 
-**On the results page:**
+On the results page:
 - Use the tabs to switch between Object, Field, Apex, and System permissions
 - On the Field tab, search for any object by name to load its fields
 - On the System Permissions tab, use the search bar or click **Show Differences Only** to highlight what's different
@@ -87,24 +84,24 @@ That's it. The component is live.
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 permissionSetComparator/
 ├── classes/
-│   ├── PermissionSetComparatorController.cls       ← Apex backend
+│   ├── PermissionSetComparatorController.cls
 │   └── PermissionSetComparatorController.cls-meta.xml
 └── lwc/
     └── permissionSetComparator/
-        ├── permissionSetComparator.html            ← UI template
-        ├── permissionSetComparator.js              ← Component logic
-        ├── permissionSetComparator.css             ← Styling
-        └── permissionSetComparator.js-meta.xml    ← Component metadata
+        ├── permissionSetComparator.html
+        ├── permissionSetComparator.js
+        ├── permissionSetComparator.css
+        └── permissionSetComparator.js-meta.xml
 ```
 
 ---
 
-## 🔒 Permissions Required
+## Permissions Required
 
 The user running the component needs:
 - **View Setup and Configuration** — to query permission set metadata
@@ -114,7 +111,7 @@ Grant both via a Permission Set assigned to your admins.
 
 ---
 
-## 🧠 Technical Notes
+## Technical Notes
 
 - **Objects** — loaded via `EntityDefinition` SOQL with OFFSET pagination, covering up to 2000 objects per org including all managed package objects
 - **Fields** — loaded on demand per object via `FieldDefinition` SOQL with OFFSET pagination, covering up to 800 fields per object
@@ -123,7 +120,7 @@ Grant both via a Permission Set assigned to your admins.
 
 ---
 
-## 🐛 Known Limitations
+## Known Limitations
 
 - Permission Sets with more than 500 entries may be truncated in the selection list (increase the SOQL `LIMIT` in `getPermissionSets()` if needed)
 - Field permissions show all fields on an object — for objects with 500+ fields this may take a few seconds to load
@@ -131,7 +128,7 @@ Grant both via a Permission Set assigned to your admins.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Found a bug? Have an idea? Pull requests are welcome.
 
@@ -142,10 +139,10 @@ Found a bug? Have an idea? Pull requests are welcome.
 
 ---
 
-## 📄 License
+## License
 
-MIT — use it, modify it, share it. Just don't sell it as your own product.
+MIT — use it, modify it, share it.
 
 ---
 
-Built with ☕ and frustration at Salesforce's native permission comparison experience.
+Built out of frustration at Salesforce's native permission comparison experience.
